@@ -31,7 +31,11 @@ st.markdown(
 [data-testid="stAppViewContainer"] {
     background: #f6f8fc;
 }
-.block-container {max-width: 1180px; padding-top: 2.5rem; padding-bottom: 4rem;}
+.block-container {
+    max-width: 1180px;
+    padding-top: 1rem;
+    padding-bottom: 4rem;
+}
 [data-testid="stSidebar"] {
     background: #eef3f8;
     border-right: 1px solid #dfe6ee;
@@ -58,14 +62,16 @@ st.markdown(
     background: #e8f1fb;
     border: 1px solid #d3e2f2;
     border-radius: 10px;
-    padding: 20px 22px;
+    padding: 22px;
+    overflow: visible;
 }
 .hero-title {
     color: #172033;
     font-size: 2rem;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.35;
     letter-spacing: -0.025em;
+    padding-top: 2px;
 }
 .hero-copy {
     color: #526177;
