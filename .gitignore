@@ -6,4 +6,4 @@ __pycache__/
 .ruff_cache/
 .DS_Store
 .streamlit/secrets.toml
-
+.job_market_history.json

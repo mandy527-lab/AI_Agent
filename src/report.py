@@ -14,15 +14,25 @@ def build_markdown_report(result: MarketAnalysis) -> str:
         "",
         "## 熱門技能",
         "",
-        "| 技能 | 出現職缺數 | 需求程度 | 條件類型 |",
-        "|---|---:|---|---|",
+        "| 技能 | 出現職缺數 | 需求程度 | 條件類型 | 信心 |",
+        "|---|---:|---|---|---|",
     ]
 
     for skill in result.top_skills:
         lines.append(
             f"| {skill.skill} | {skill.demand_count} | "
-            f"{skill.demand_level} | {skill.requirement_type} |"
+            f"{skill.demand_level} | {skill.requirement_type} | "
+            f"{skill.confidence} |"
         )
+
+    lines.extend(["", "## 職缺原文證據", ""])
+    for skill in result.top_skills:
+        lines.append(f"### {skill.skill}")
+        lines.extend(
+            f"- 職缺 {evidence.job_number}：「{evidence.quote}」"
+            for evidence in skill.evidence
+        )
+        lines.append("")
 
     lines.extend(["", "## 個人優勢", ""])
     if result.candidate_strengths:
@@ -55,4 +65,3 @@ def build_markdown_report(result: MarketAnalysis) -> str:
     lines.extend(f"- {topic}" for topic in result.interview_focus)
     lines.append("")
     return "\n".join(lines)
-

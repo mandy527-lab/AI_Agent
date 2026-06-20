@@ -10,12 +10,19 @@ class JobSummary(BaseModel):
     key_requirements: list[str] = Field(description="此職缺最重要的條件")
 
 
+class SkillEvidence(BaseModel):
+    job_number: int = Field(ge=1)
+    quote: str = Field(description="支持技能判斷的職缺原文短句")
+
+
 class SkillDemand(BaseModel):
     skill: str = Field(description="標準化後的技能名稱")
     demand_count: int = Field(ge=1, description="提到此技能的職缺數")
     demand_level: Literal["高", "中", "低"]
     requirement_type: Literal["必要為主", "加分為主", "混合", "不明"]
     source_jobs: list[int] = Field(description="提到此技能的職缺編號")
+    confidence: Literal["高", "中", "低"] = Field(description="分類可信度")
+    evidence: list[SkillEvidence] = Field(description="各來源職缺的原文證據")
 
 
 class CandidateStrength(BaseModel):
@@ -49,4 +56,3 @@ class MarketAnalysis(BaseModel):
     skill_gaps: list[SkillGap]
     learning_plan: list[LearningStep]
     interview_focus: list[str] = Field(description="這批職缺共同可能關注的面試主題")
-

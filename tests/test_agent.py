@@ -32,6 +32,11 @@ def sample_analysis() -> MarketAnalysis:
                 "demand_level": "高",
                 "requirement_type": "必要為主",
                 "source_jobs": [1, 2],
+                "confidence": "高",
+                "evidence": [
+                    {"job_number": 1, "quote": "熟悉 SQL"},
+                    {"job_number": 2, "quote": "撰寫 SQL 查詢"},
+                ],
             }
         ],
         candidate_strengths=[],
