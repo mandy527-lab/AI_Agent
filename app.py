@@ -28,18 +28,49 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+[data-testid="stAppViewContainer"] {
+    background: #f6f8fc;
+}
 .block-container {max-width: 1180px; padding-top: 2.5rem; padding-bottom: 4rem;}
 [data-testid="stSidebar"] {
-    border-right: 1px solid #e5e7eb;
+    background: #eef3f8;
+    border-right: 1px solid #dfe6ee;
 }
 [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
     gap: 0.75rem;
 }
 [data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
+    background: #eaf2ff;
+    border: 1px solid #d6e5fb;
     border-radius: 8px;
     padding: 12px 14px;
+}
+[data-baseweb="tab-list"] {
+    background: #edf2f7;
+    border-radius: 8px;
+    padding: 4px;
+}
+[data-testid="stExpander"] {
+    background: #ffffff;
+    border-color: #dfe6ee;
+}
+.hero-panel {
+    background: #e8f1fb;
+    border: 1px solid #d3e2f2;
+    border-radius: 10px;
+    padding: 20px 22px;
+}
+.hero-title {
+    color: #172033;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+}
+.hero-copy {
+    color: #526177;
+    font-size: 0.92rem;
+    margin-top: 7px;
 }
 .evidence-box {
     border-left: 3px solid #64748b;
@@ -69,7 +100,8 @@ st.markdown(
     text-transform: uppercase;
 }
 .result-summary {
-    border: 1px solid #e5e7eb;
+    background: #edf7f5;
+    border: 1px solid #d1ebe5;
     border-radius: 8px;
     padding: 14px 16px;
     color: #374151;
@@ -90,6 +122,9 @@ def load_examples() -> None:
 def clear_jobs() -> None:
     for index in range(5):
         st.session_state[f"job_{index}"] = ""
+    st.session_state.pop("market_result", None)
+    st.session_state.pop("used_resume", None)
+    st.session_state.pop("resume_file", None)
 
 
 def format_history_time(value: str) -> str:
@@ -129,8 +164,17 @@ with st.sidebar:
 
 title_col, action_col = st.columns([3, 2], vertical_alignment="center")
 with title_col:
-    st.title("職缺市場分析")
-    st.caption("比較多個相似職缺，整理共同需求、原文證據與準備優先順序。")
+    st.markdown(
+        """
+<div class="hero-panel">
+    <div class="hero-title">職缺市場分析</div>
+    <div class="hero-copy">
+        比較多個相似職缺，整理共同需求、原文證據與準備優先順序。
+    </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
 with action_col:
     example_col, clear_col = st.columns(2)
     example_col.button(
@@ -176,6 +220,7 @@ with st.expander("加入履歷比對（選填）"):
     resume_file = st.file_uploader(
         "履歷檔案",
         type=["pdf", "docx", "txt"],
+        key="resume_file",
         help="支援文字型 PDF、Word 與純文字檔。",
     )
 
