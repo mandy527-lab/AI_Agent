@@ -31,6 +31,12 @@ st.markdown(
 [data-testid="stAppViewContainer"] {
     background: #f6f8fc;
 }
+[data-testid="stHeader"] {
+    background: #f6f8fc;
+}
+[data-testid="stDecoration"] {
+    display: none;
+}
 .block-container {
     max-width: 1180px;
     padding-top: 1rem;
