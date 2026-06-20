@@ -21,27 +21,60 @@ from src.resume_parser import extract_resume_text
 load_dotenv()
 
 st.set_page_config(
-    page_title="Job Market Intelligence Agent",
-    page_icon="📊",
+    page_title="職缺市場分析",
+    page_icon=":material/query_stats:",
     layout="wide",
 )
 
 st.markdown(
     """
 <style>
-.block-container {max-width: 1180px; padding-top: 2rem;}
+.block-container {max-width: 1180px; padding-top: 2.5rem; padding-bottom: 4rem;}
+[data-testid="stSidebar"] {
+    border-right: 1px solid #e5e7eb;
+}
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+    gap: 0.75rem;
+}
 [data-testid="stMetric"] {
-    background: linear-gradient(135deg, #f8fafc, #eef2ff);
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 14px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 14px;
 }
 .evidence-box {
-    border-left: 4px solid #6366f1;
+    border-left: 3px solid #64748b;
     background: #f8fafc;
-    border-radius: 0 10px 10px 0;
-    padding: 10px 14px;
+    border-radius: 0 6px 6px 0;
+    padding: 10px 12px;
     margin: 8px 0;
+}
+.product-name {
+    font-size: 1.05rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: #111827;
+}
+.product-label {
+    margin-top: 2px;
+    font-size: 0.78rem;
+    color: #6b7280;
+}
+.section-label {
+    margin-top: 8px;
+    margin-bottom: -2px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+    text-transform: uppercase;
+}
+.result-summary {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: #374151;
+    margin: 10px 0 16px;
 }
 </style>
 """,
@@ -67,26 +100,30 @@ def format_history_time(value: str) -> str:
         return "未知時間"
 
 
-st.title("📊 Job Market Intelligence Agent")
-st.caption("把零散職缺變成可追溯的市場情報，再排出你的學習與作品集優先順序。")
-
 with st.sidebar:
-    st.header("分析控制台")
-    model = st.text_input(
-        "Gemini 模型",
-        value=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
-        help="可在 .env 內修改 GEMINI_MODEL。",
+    st.markdown(
+        """
+<div class="product-name">Job Market Intelligence</div>
+<div class="product-label">職缺需求比較與技能規劃</div>
+""",
+        unsafe_allow_html=True,
     )
-    st.caption("資料會送到 Gemini API。免費方案請避免上傳敏感個資。")
 
-    st.divider()
-    st.subheader("快速開始")
-    example_col, clear_col = st.columns(2)
-    example_col.button("載入範例", on_click=load_examples, use_container_width=True)
-    clear_col.button("清除職缺", on_click=clear_jobs, use_container_width=True)
+    st.markdown('<div class="section-label">工作區</div>', unsafe_allow_html=True)
+    st.button(
+        "載入示範職缺",
+        on_click=load_examples,
+        use_container_width=True,
+        icon=":material/data_object:",
+    )
+    st.button(
+        "清除目前輸入",
+        on_click=clear_jobs,
+        use_container_width=True,
+        icon=":material/delete_sweep:",
+    )
 
-    st.divider()
-    st.subheader("分析紀錄")
+    st.markdown('<div class="section-label">最近分析</div>', unsafe_allow_html=True)
     history = load_history()
     if history:
         history_labels = {
@@ -96,23 +133,53 @@ with st.sidebar:
             ): item
             for item in history
         }
-        selected_label = st.selectbox("最近 20 次", list(history_labels))
+        selected_label = st.selectbox(
+            "選擇分析紀錄",
+            list(history_labels),
+            label_visibility="collapsed",
+        )
         selected_entry = history_labels[selected_label]
+        st.caption(
+            f"{selected_entry.get('total_jobs', 0)} 個職缺"
+            f" · {'含履歷比對' if selected_entry.get('used_resume') else '市場分析'}"
+        )
         load_col, delete_col = st.columns(2)
-        if load_col.button("載入", use_container_width=True):
+        if load_col.button(
+            "開啟",
+            use_container_width=True,
+            icon=":material/history:",
+        ):
             st.session_state["market_result"] = analysis_from_entry(selected_entry)
             st.session_state["used_resume"] = selected_entry.get(
                 "used_resume", False
             )
             st.rerun()
-        if delete_col.button("刪除", use_container_width=True):
+        if delete_col.button(
+            "刪除",
+            use_container_width=True,
+            icon=":material/delete:",
+        ):
             delete_history_entry(selected_entry["id"])
             st.rerun()
-        st.caption("僅保存分析結果，不保存履歷或完整職缺原文。")
     else:
-        st.caption("完成第一次分析後，紀錄會保存在本機。")
+        st.caption("尚無分析紀錄")
 
-st.subheader("1. 收集要比較的職缺")
+    with st.expander("設定與資料說明"):
+        model = st.text_input(
+            "分析模型",
+            value=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+            help="可在 .env 內修改 GEMINI_MODEL。",
+        )
+        api_ready = bool(os.getenv("GEMINI_API_KEY"))
+        st.caption(f"API 狀態：{'已設定' if api_ready else '尚未設定'}")
+        st.caption("分析結果保存在本機；不保存履歷或完整職缺原文。")
+        st.caption("送出分析時，輸入內容會傳送至 Gemini API。")
+
+st.title("職缺市場分析")
+st.caption("比較多個相似職缺，整理共同需求、原文證據與準備優先順序。")
+
+st.subheader("職缺資料")
+st.caption("建議放入 2–5 個相近職位，讓比較結果更有參考價值。")
 job_count = st.number_input(
     "職缺數量",
     min_value=2,
@@ -136,15 +203,20 @@ for index in range(int(job_count)):
             )
         )
 
-st.subheader("2. 選擇性加入履歷")
-st.write("不放履歷也能分析市場；放入後才會判斷你的優勢與技能缺口。")
-resume_file = st.file_uploader(
-    "上傳履歷（選填）",
-    type=["pdf", "docx", "txt"],
-    help="支援文字型 PDF、Word 與純文字檔。",
-)
+with st.expander("加入履歷比對（選填）"):
+    st.caption("未上傳時只分析市場；上傳後會額外整理已有優勢與技能缺口。")
+    resume_file = st.file_uploader(
+        "履歷檔案",
+        type=["pdf", "docx", "txt"],
+        help="支援文字型 PDF、Word 與純文字檔。",
+    )
 
-if st.button("開始市場分析", type="primary", use_container_width=True):
+if st.button(
+    "產生分析",
+    type="primary",
+    use_container_width=True,
+    icon=":material/analytics:",
+):
     if not os.getenv("GEMINI_API_KEY"):
         st.error("找不到 GEMINI_API_KEY。請依 README 設定 .env。")
     elif sum(bool(job.strip()) for job in job_descriptions) < 2:
@@ -158,7 +230,7 @@ if st.button("開始市場分析", type="primary", use_container_width=True):
                     st.error("沒有讀到履歷文字。掃描版 PDF 請先進行 OCR。")
                     st.stop()
 
-            with st.spinner("Agent 正在整理需求、核對證據與建立行動計畫……"):
+            with st.spinner("正在整理職缺需求與原文證據……"):
                 result = analyze_job_market(
                     job_descriptions=job_descriptions,
                     resume_text=resume_text,
@@ -179,7 +251,7 @@ if "market_result" in st.session_state:
     used_resume = st.session_state.get("used_resume", False)
 
     st.divider()
-    st.success("市場分析完成，結果已保存到本機紀錄。")
+    st.caption("分析完成 · 已保存至本機紀錄")
     role_col, jobs_col, skills_col, evidence_col = st.columns([2, 1, 1, 1])
     role_col.metric("目標職位", result.target_role)
     jobs_col.metric("分析職缺", result.total_jobs)
@@ -188,11 +260,14 @@ if "market_result" in st.session_state:
         "原文證據",
         sum(len(skill.evidence) for skill in result.top_skills),
     )
-    st.info(result.market_summary)
+    st.markdown(
+        f'<div class="result-summary">{result.market_summary}</div>',
+        unsafe_allow_html=True,
+    )
 
     report = build_markdown_report(result)
     st.download_button(
-        "下載完整 Markdown 報告",
+        "下載分析報告",
         data=report,
         file_name="job-market-analysis.md",
         mime="text/markdown",
@@ -277,7 +352,7 @@ if "market_result" in st.session_state:
 
     with tab2:
         st.subheader("技能判斷的原文證據")
-        st.caption("可回到來源職缺核對，降低 AI 分類錯誤帶來的風險。")
+        st.caption("每項判斷都可回到來源職缺核對。")
         for skill in result.top_skills:
             with st.expander(
                 f"{skill.skill}｜{skill.demand_count}/{result.total_jobs} 個職缺"
@@ -332,7 +407,7 @@ if "market_result" in st.session_state:
             with st.container(border=True):
                 st.markdown(f"### {step.order}. {step.focus}")
                 st.write(step.action)
-                st.success(f"能力證明：{step.proof_of_skill}")
+                st.caption(f"建議產出：{step.proof_of_skill}")
 
         st.subheader("面試準備主題")
         for topic in result.interview_focus:
