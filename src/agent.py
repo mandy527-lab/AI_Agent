@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Any, Optional
 
-from openai import OpenAI
+from google import genai
 
 from src.models import JobFitAnalysis
 
@@ -37,8 +37,8 @@ def build_user_prompt(resume_text: str, job_description: str) -> str:
 def analyze_job_fit(
     resume_text: str,
     job_description: str,
-    model: str = "gpt-5.5",
-    client: Optional[OpenAI] = None,
+    model: str = "gemini-3.5-flash",
+    client: Optional[Any] = None,
 ) -> JobFitAnalysis:
     """Analyze resume-to-job fit and return validated structured data."""
     if not resume_text.strip():
@@ -46,20 +46,18 @@ def analyze_job_fit(
     if not job_description.strip():
         raise ValueError("職缺內容不能是空白。")
 
-    openai_client = client or OpenAI()
-    response = openai_client.responses.parse(
+    gemini_client = client or genai.Client()
+    response = gemini_client.models.generate_content(
         model=model,
-        input=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": build_user_prompt(resume_text, job_description),
-            },
-        ],
-        text_format=JobFitAnalysis,
+        contents=build_user_prompt(resume_text, job_description),
+        config={
+            "system_instruction": SYSTEM_PROMPT,
+            "response_mime_type": "application/json",
+            "response_schema": JobFitAnalysis,
+        },
     )
 
-    if response.output_parsed is None:
+    if not response.text:
         raise ValueError("模型沒有回傳可用的分析結果，請再試一次。")
 
-    return response.output_parsed
+    return JobFitAnalysis.model_validate_json(response.text)

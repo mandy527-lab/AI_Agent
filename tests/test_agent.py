@@ -31,7 +31,7 @@ def test_analyze_job_fit_returns_parsed_result():
         interview_questions=[],
     )
     fake_client = Mock()
-    fake_client.responses.parse.return_value.output_parsed = expected
+    fake_client.models.generate_content.return_value.text = expected.model_dump_json()
 
     result = analyze_job_fit(
         "I use Python.",
@@ -40,5 +40,4 @@ def test_analyze_job_fit_returns_parsed_result():
     )
 
     assert result == expected
-    fake_client.responses.parse.assert_called_once()
-
+    fake_client.models.generate_content.assert_called_once()

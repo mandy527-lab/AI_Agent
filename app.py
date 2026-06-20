@@ -26,14 +26,14 @@ with st.sidebar:
 2. 貼上完整職缺內容
 3. 點擊「開始分析」
 
-你的履歷文字只會送到 OpenAI API 進行本次分析。
+你的履歷文字只會送到 Gemini API 進行本次分析。
 請勿上傳不希望交給第三方處理的敏感資料。
 """
     )
     model = st.text_input(
-        "OpenAI 模型",
-        value=os.getenv("OPENAI_MODEL", "gpt-5.5"),
-        help="可在 .env 內修改 OPENAI_MODEL。",
+        "Gemini 模型",
+        value=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
+        help="可在 .env 內修改 GEMINI_MODEL。",
     )
 
 resume_file = st.file_uploader(
@@ -48,8 +48,8 @@ job_description = st.text_area(
 )
 
 if st.button("開始分析", type="primary", use_container_width=True):
-    if not os.getenv("OPENAI_API_KEY"):
-        st.error("找不到 OPENAI_API_KEY。請依 README 建立 .env 檔案。")
+    if not os.getenv("GEMINI_API_KEY"):
+        st.error("找不到 GEMINI_API_KEY。請依 README 建立 .env 檔案。")
     elif resume_file is None:
         st.warning("請先上傳履歷。")
     elif not job_description.strip():
@@ -114,5 +114,4 @@ if st.button("開始分析", type="primary", use_container_width=True):
             st.error(str(error))
         except Exception as error:
             st.error(f"分析失敗：{error}")
-            st.info("請確認 API Key、網路連線與模型名稱是否正確。")
-
+            st.info("請確認 Gemini API Key、免費額度、網路連線與模型名稱。")
