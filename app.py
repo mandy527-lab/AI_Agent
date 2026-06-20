@@ -10,7 +10,6 @@ from src.agent import analyze_job_market
 from src.examples import EXAMPLE_JOBS
 from src.history import (
     analysis_from_entry,
-    delete_history_entry,
     load_history,
     save_analysis,
 )
@@ -100,83 +99,52 @@ def format_history_time(value: str) -> str:
         return "未知時間"
 
 
-with st.sidebar:
-    st.markdown(
-        """
-<div class="product-name">Job Market Intelligence</div>
-<div class="product-label">職缺需求比較與技能規劃</div>
-""",
-        unsafe_allow_html=True,
-    )
+model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
-    st.markdown('<div class="section-label">工作區</div>', unsafe_allow_html=True)
-    st.button(
-        "載入示範職缺",
+with st.sidebar:
+    st.subheader("分析紀錄")
+    history = load_history()
+    if history:
+        for entry in history[:10]:
+            label = (
+                f"{entry.get('target_role', '未命名')}\n"
+                f"{format_history_time(entry.get('created_at', ''))}"
+            )
+            if st.button(
+                label,
+                key=f"history_{entry['id']}",
+                use_container_width=True,
+                help=f"{entry.get('total_jobs', 0)} 個職缺"
+                f" · {'含履歷比對' if entry.get('used_resume') else '市場分析'}",
+            ):
+                st.session_state["market_result"] = analysis_from_entry(entry)
+                st.session_state["used_resume"] = entry.get("used_resume", False)
+                st.rerun()
+    else:
+        st.caption("尚無分析紀錄")
+
+    st.divider()
+    st.caption("分析模型")
+    st.code(model, language=None)
+
+title_col, action_col = st.columns([3, 2], vertical_alignment="center")
+with title_col:
+    st.title("職缺市場分析")
+    st.caption("比較多個相似職缺，整理共同需求、原文證據與準備優先順序。")
+with action_col:
+    example_col, clear_col = st.columns(2)
+    example_col.button(
+        "點我看範例",
         on_click=load_examples,
         use_container_width=True,
-        icon=":material/data_object:",
+        icon=":material/preview:",
     )
-    st.button(
-        "清除目前輸入",
+    clear_col.button(
+        "清除職缺",
         on_click=clear_jobs,
         use_container_width=True,
         icon=":material/delete_sweep:",
     )
-
-    st.markdown('<div class="section-label">最近分析</div>', unsafe_allow_html=True)
-    history = load_history()
-    if history:
-        history_labels = {
-            (
-                f"{item.get('target_role', '未命名')} · "
-                f"{format_history_time(item.get('created_at', ''))}"
-            ): item
-            for item in history
-        }
-        selected_label = st.selectbox(
-            "選擇分析紀錄",
-            list(history_labels),
-            label_visibility="collapsed",
-        )
-        selected_entry = history_labels[selected_label]
-        st.caption(
-            f"{selected_entry.get('total_jobs', 0)} 個職缺"
-            f" · {'含履歷比對' if selected_entry.get('used_resume') else '市場分析'}"
-        )
-        load_col, delete_col = st.columns(2)
-        if load_col.button(
-            "開啟",
-            use_container_width=True,
-            icon=":material/history:",
-        ):
-            st.session_state["market_result"] = analysis_from_entry(selected_entry)
-            st.session_state["used_resume"] = selected_entry.get(
-                "used_resume", False
-            )
-            st.rerun()
-        if delete_col.button(
-            "刪除",
-            use_container_width=True,
-            icon=":material/delete:",
-        ):
-            delete_history_entry(selected_entry["id"])
-            st.rerun()
-    else:
-        st.caption("尚無分析紀錄")
-
-    with st.expander("設定與資料說明"):
-        model = st.text_input(
-            "分析模型",
-            value=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
-            help="可在 .env 內修改 GEMINI_MODEL。",
-        )
-        api_ready = bool(os.getenv("GEMINI_API_KEY"))
-        st.caption(f"API 狀態：{'已設定' if api_ready else '尚未設定'}")
-        st.caption("分析結果保存在本機；不保存履歷或完整職缺原文。")
-        st.caption("送出分析時，輸入內容會傳送至 Gemini API。")
-
-st.title("職缺市場分析")
-st.caption("比較多個相似職缺，整理共同需求、原文證據與準備優先順序。")
 
 st.subheader("職缺資料")
 st.caption("建議放入 2–5 個相近職位，讓比較結果更有參考價值。")
@@ -251,9 +219,11 @@ if "market_result" in st.session_state:
     used_resume = st.session_state.get("used_resume", False)
 
     st.divider()
+    st.header("分析結果")
     st.caption("分析完成 · 已保存至本機紀錄")
-    role_col, jobs_col, skills_col, evidence_col = st.columns([2, 1, 1, 1])
-    role_col.metric("目標職位", result.target_role)
+    st.caption("目標職位")
+    st.subheader(result.target_role)
+    jobs_col, skills_col, evidence_col = st.columns(3)
     jobs_col.metric("分析職缺", result.total_jobs)
     skills_col.metric("技能類別", len(result.top_skills))
     evidence_col.metric(
@@ -274,7 +244,7 @@ if "market_result" in st.session_state:
     )
 
     tab1, tab2, tab3, tab4 = st.tabs(
-        ["市場總覽", "證據與職缺", "個人差距", "行動計畫"]
+        ["市場職缺總覽", "各項職缺分析證據", "個人能力分析", "行動計畫"]
     )
 
     with tab1:
@@ -376,11 +346,12 @@ if "market_result" in st.session_state:
 
     with tab3:
         if not used_resume:
-            st.info("這次沒有提供履歷，因此不對個人能力下判斷。")
+            st.info("這次沒有提供履歷，因此無法整理個人優勢與待補強能力。")
         else:
+            st.caption("根據履歷中的明確證據，比對市場需求後整理優勢與待補強項目。")
             strength_col, gap_col = st.columns(2)
             with strength_col:
-                st.subheader("已有優勢")
+                st.subheader("個人優勢")
                 if result.candidate_strengths:
                     for item in result.candidate_strengths:
                         with st.container(border=True):
@@ -391,7 +362,7 @@ if "market_result" in st.session_state:
                     st.write("沒有找到能明確連結市場需求的履歷證據。")
 
             with gap_col:
-                st.subheader("技能缺口")
+                st.subheader("待補強能力")
                 if result.skill_gaps:
                     for item in result.skill_gaps:
                         with st.container(border=True):
