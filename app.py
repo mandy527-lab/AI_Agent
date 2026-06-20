@@ -32,14 +32,14 @@ st.markdown(
     background: #f6f8fc;
 }
 [data-testid="stHeader"] {
-    background: #f6f8fc;
+    display: none;
 }
 [data-testid="stDecoration"] {
     display: none;
 }
 .block-container {
     max-width: 1180px;
-    padding-top: 1rem;
+    padding-top: 1.5rem;
     padding-bottom: 4rem;
 }
 [data-testid="stSidebar"] {
