@@ -28,14 +28,7 @@ def save_analysis(
     max_entries: int = 20,
 ) -> dict[str, Any]:
     """Save a privacy-conscious snapshot without raw jobs or resume text."""
-    entry = {
-        "id": uuid4().hex,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "target_role": result.target_role,
-        "total_jobs": result.total_jobs,
-        "used_resume": used_resume,
-        "result": result.model_dump(mode="json"),
-    }
+    entry = create_history_entry(result, used_resume)
     history = load_history(path)
     history.insert(0, entry)
     path.write_text(
@@ -43,6 +36,21 @@ def save_analysis(
         encoding="utf-8",
     )
     return entry
+
+
+def create_history_entry(
+    result: MarketAnalysis,
+    used_resume: bool,
+) -> dict[str, Any]:
+    """Create a history snapshot without writing it to shared storage."""
+    return {
+        "id": uuid4().hex,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "target_role": result.target_role,
+        "total_jobs": result.total_jobs,
+        "used_resume": used_resume,
+        "result": result.model_dump(mode="json"),
+    }
 
 
 def delete_history_entry(
@@ -58,4 +66,3 @@ def delete_history_entry(
 
 def analysis_from_entry(entry: dict[str, Any]) -> MarketAnalysis:
     return MarketAnalysis.model_validate(entry["result"])
-

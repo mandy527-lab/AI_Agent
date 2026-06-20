@@ -10,14 +10,26 @@ from src.agent import analyze_job_market
 from src.examples import EXAMPLE_JOBS
 from src.history import (
     analysis_from_entry,
-    load_history,
-    save_analysis,
+    create_history_entry,
 )
 from src.report import build_markdown_report
 from src.resume_parser import extract_resume_text
 
 
 load_dotenv()
+
+
+def load_cloud_secrets() -> None:
+    """Expose Streamlit Cloud secrets to SDKs that read environment variables."""
+    try:
+        for key in ("GEMINI_API_KEY", "GEMINI_MODEL"):
+            if key in st.secrets and not os.getenv(key):
+                os.environ[key] = str(st.secrets[key])
+    except FileNotFoundError:
+        pass
+
+
+load_cloud_secrets()
 
 st.set_page_config(
     page_title="職缺市場分析",
@@ -32,7 +44,8 @@ st.markdown(
     background: #f6f8fc;
 }
 [data-testid="stHeader"] {
-    display: none;
+    display: block;
+    background: transparent;
 }
 [data-testid="stDecoration"] {
     display: none;
@@ -147,10 +160,10 @@ def format_history_time(value: str) -> str:
 
 
 model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
+history = st.session_state.setdefault("analysis_history", [])
 
 with st.sidebar:
     st.subheader("分析紀錄")
-    history = load_history()
     if history:
         for entry in history[:10]:
             label = (
@@ -264,7 +277,8 @@ if st.button(
 
             st.session_state["market_result"] = result
             st.session_state["used_resume"] = bool(resume_text)
-            save_analysis(result, used_resume=bool(resume_text))
+            history.insert(0, create_history_entry(result, bool(resume_text)))
+            del history[20:]
         except ValueError as error:
             st.error(str(error))
         except Exception as error:

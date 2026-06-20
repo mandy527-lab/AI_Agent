@@ -2,6 +2,7 @@ import json
 
 from src.history import (
     analysis_from_entry,
+    create_history_entry,
     delete_history_entry,
     load_history,
     save_analysis,
@@ -22,6 +23,14 @@ def test_save_and_load_history_without_raw_inputs(tmp_path):
     assert "resume_text" not in history[0]
     assert "job_descriptions" not in history[0]
     assert analysis_from_entry(history[0]) == result
+
+
+def test_create_history_entry_is_safe_for_session_storage():
+    entry = create_history_entry(sample_analysis(), used_resume=True)
+
+    assert entry["used_resume"] is True
+    assert "resume_text" not in entry
+    assert "job_descriptions" not in entry
 
 
 def test_delete_history_entry(tmp_path):
