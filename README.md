@@ -75,6 +75,7 @@ cp .env.example .env
 ```dotenv
 GEMINI_API_KEY=你的_Gemini_API_Key
 GEMINI_MODEL=gemini-3.5-flash
+GEMINI_FALLBACK_MODEL=gemini-3.1-flash-lite
 ```
 
 請到 [Google AI Studio](https://aistudio.google.com/apikey) 免費建立 Gemini API Key。
@@ -82,6 +83,9 @@ GEMINI_MODEL=gemini-3.5-flash
 免費方案有速率限制，而且提交內容可能被 Google 用於改善產品。若要加入履歷，建議先移除姓名、電話、地址等個資。
 
 `.env` 已列入 `.gitignore`，不會被推送到 GitHub。
+
+遇到 Gemini `503` 暫時過載時，系統會自動重試，並切換到
+`GEMINI_FALLBACK_MODEL`，不會直接把 API 錯誤內容顯示給使用者。
 
 ### 5. 啟動網頁
 

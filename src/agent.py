@@ -1,6 +1,9 @@
+import os
+import time
 from typing import Any, Optional
 
 from google import genai
+from google.genai import errors
 
 from src.models import MarketAnalysis
 
@@ -23,6 +26,12 @@ SYSTEM_PROMPT = """
 11. 學習計畫要具體，並包含可以放進作品集的能力證明。
 12. 這是市場分析與決策支援，不是履歷代寫服務。
 """.strip()
+
+RETRYABLE_STATUS_CODES = {500, 502, 503, 504}
+
+
+class AnalysisTemporarilyUnavailableError(RuntimeError):
+    """Raised when all configured Gemini models remain temporarily unavailable."""
 
 
 def build_market_prompt(
@@ -54,6 +63,8 @@ def analyze_job_market(
     resume_text: str = "",
     model: str = "gemini-3.5-flash",
     client: Optional[Any] = None,
+    fallback_model: Optional[str] = None,
+    sleep: Any = time.sleep,
 ) -> MarketAnalysis:
     """Analyze two to five jobs and optionally compare them with a resume."""
     cleaned_jobs = [job.strip() for job in job_descriptions if job.strip()]
@@ -63,16 +74,41 @@ def analyze_job_market(
         raise ValueError("第一版最多分析 5 個職缺。")
 
     gemini_client = client or genai.Client()
-    response = gemini_client.models.generate_content(
-        model=model,
-        contents=build_market_prompt(cleaned_jobs, resume_text),
-        config={
-            "system_instruction": SYSTEM_PROMPT,
-            "response_mime_type": "application/json",
-            "response_schema": MarketAnalysis,
-        },
+    fallback = fallback_model or os.getenv(
+        "GEMINI_FALLBACK_MODEL",
+        "gemini-3.1-flash-lite",
     )
+    models = list(dict.fromkeys([model, fallback]))
+    prompt = build_market_prompt(cleaned_jobs, resume_text)
+    response = None
+    last_error = None
 
+    for candidate_model in models:
+        for attempt, delay in enumerate((2, 4, None), start=1):
+            try:
+                response = gemini_client.models.generate_content(
+                    model=candidate_model,
+                    contents=prompt,
+                    config={
+                        "system_instruction": SYSTEM_PROMPT,
+                        "response_mime_type": "application/json",
+                        "response_schema": MarketAnalysis,
+                    },
+                )
+                break
+            except errors.ServerError as error:
+                if error.code not in RETRYABLE_STATUS_CODES:
+                    raise
+                last_error = error
+                if delay is not None:
+                    sleep(delay)
+        if response is not None:
+            break
+
+    if response is None:
+        raise AnalysisTemporarilyUnavailableError(
+            "Gemini 目前使用量較高，主模型與備援模型都暫時無法回應。"
+        ) from last_error
     if not response.text:
         raise ValueError("模型沒有回傳可用的市場分析，請再試一次。")
 

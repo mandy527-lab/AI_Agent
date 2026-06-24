@@ -1,8 +1,13 @@
 from unittest.mock import Mock
 
 import pytest
+from google.genai import errors
 
-from src.agent import analyze_job_market, build_market_prompt
+from src.agent import (
+    AnalysisTemporarilyUnavailableError,
+    analyze_job_market,
+    build_market_prompt,
+)
 from src.models import MarketAnalysis
 
 
@@ -93,3 +98,70 @@ def test_analyze_job_market_returns_validated_result():
 
     assert result == expected
     fake_client.models.generate_content.assert_called_once()
+
+
+def test_analyze_job_market_retries_temporary_server_error():
+    expected = sample_analysis()
+    fake_client = Mock()
+    fake_client.models.generate_content.side_effect = [
+        errors.ServerError(503, {"message": "high demand"}),
+        Mock(text=expected.model_dump_json()),
+    ]
+    sleep = Mock()
+
+    result = analyze_job_market(
+        ["Need SQL", "Need SQL and Tableau"],
+        client=fake_client,
+        sleep=sleep,
+    )
+
+    assert result == expected
+    assert fake_client.models.generate_content.call_count == 2
+    sleep.assert_called_once_with(2)
+
+
+def test_analyze_job_market_uses_fallback_after_three_failures():
+    expected = sample_analysis()
+    fake_client = Mock()
+    fake_client.models.generate_content.side_effect = [
+        errors.ServerError(503, {"message": "high demand"}),
+        errors.ServerError(503, {"message": "high demand"}),
+        errors.ServerError(503, {"message": "high demand"}),
+        Mock(text=expected.model_dump_json()),
+    ]
+
+    result = analyze_job_market(
+        ["Need SQL", "Need SQL and Tableau"],
+        model="primary-model",
+        fallback_model="fallback-model",
+        client=fake_client,
+        sleep=Mock(),
+    )
+
+    assert result == expected
+    calls = fake_client.models.generate_content.call_args_list
+    assert [call.kwargs["model"] for call in calls] == [
+        "primary-model",
+        "primary-model",
+        "primary-model",
+        "fallback-model",
+    ]
+
+
+def test_analyze_job_market_raises_friendly_error_when_all_models_fail():
+    fake_client = Mock()
+    fake_client.models.generate_content.side_effect = errors.ServerError(
+        503,
+        {"message": "high demand"},
+    )
+
+    with pytest.raises(AnalysisTemporarilyUnavailableError, match="備援模型"):
+        analyze_job_market(
+            ["Need SQL", "Need SQL and Tableau"],
+            model="primary-model",
+            fallback_model="fallback-model",
+            client=fake_client,
+            sleep=Mock(),
+        )
+
+    assert fake_client.models.generate_content.call_count == 6

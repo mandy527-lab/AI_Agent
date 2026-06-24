@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 
-from src.agent import analyze_job_market
+from src.agent import AnalysisTemporarilyUnavailableError, analyze_job_market
 from src.examples import EXAMPLE_JOBS
 from src.history import (
     analysis_from_entry,
@@ -161,6 +161,7 @@ def format_history_time(value: str) -> str:
 
 model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 history = st.session_state.setdefault("analysis_history", [])
+st.session_state.setdefault("job_count", 3)
 
 with st.sidebar:
     st.subheader("分析紀錄")
@@ -221,7 +222,6 @@ job_count = st.number_input(
     "職缺數量",
     min_value=2,
     max_value=5,
-    value=3,
     step=1,
     key="job_count",
     help="建議選擇相似職位，才能看出有意義的共同需求。",
@@ -279,6 +279,9 @@ if st.button(
             st.session_state["used_resume"] = bool(resume_text)
             history.insert(0, create_history_entry(result, bool(resume_text)))
             del history[20:]
+        except AnalysisTemporarilyUnavailableError:
+            st.error("分析服務目前使用量較高，請稍候 1–2 分鐘再試一次。")
+            st.caption("系統已自動重試，並嘗試切換備援模型。")
         except ValueError as error:
             st.error(str(error))
         except Exception as error:
